@@ -1,5 +1,3 @@
-# dissertation
-
 # Installation
 In order to generate new data, both Savile Row and MiniZinc need to be downloaded. The version used to generate this data was 1.9.1 for Savile Row, 2.6.4 x86_64 for MiniZinc. 
 
