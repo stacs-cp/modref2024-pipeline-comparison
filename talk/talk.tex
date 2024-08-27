@@ -1,0 +1,184 @@
+%\documentclass[handout]{beamer}
+\documentclass{beamer}
+
+\input{talkpreamble}
+
+\usepackage{algorithm}
+%\usepackage{algorithmic} 
+\usepackage[noend]{algpseudocode}
+
+\title[Understanding Differences Between Modelling Pipelines]{Towards Understanding Differences Between Modelling Pipelines: a Modelers Perspective}
+\author[R Hoffmann]{Csobán Balogh, \textbf{Ruth Hoffmann} and Joan Espasa}
+\institute[ModRef 2024]{ModRef 2024, University of Girona}
+
+\begin{document}
+
+{
+    \begin{frame}[plain,noframenumbering]
+        \titlepage
+    \end{frame}
+}
+
+
+\section*{Intro}
+\begin{frame}{What and why?}
+From a (single) users perspective:
+    \begin{itemize}
+        \item Investigate the capabilities of constraint programming pipelines.
+        \item Investigate the difference in languages.
+        \item Comparing MiniZinc and Savile Row.
+    \end{itemize}
+\end{frame}
+
+\begin{frame}{How?}
+\begin{itemize}
+    \item Create as close to equivalent models as possible.
+    \item Using MiniZinc and Essence' (not Essence)
+    \item Compare over the same solver (Chuffed).
+    \item Compare over equivalent(ish) optimisation levels.
+    \item 6 Models from different problem classes
+    \begin{enumerate}
+        \item Quasigroup Completion, (no exciting differences)
+        \item Wordpress Problem, (no exciting differences)
+        \item Rotating Rostering Problem, (no exciting differences)
+        \item Travelling Tournament Problem with Predefined Values, 
+        \item Multi-Skilled Project Scheduling Problem,
+        \item Capacitated Vehicle Routing Problem with Time Windows.
+    \end{enumerate}
+\end{itemize}
+\end{frame}
+
+\section*{Language Differences}
+\begin{frame}{\texttt{regular} (MZn) vs \texttt{forAll} (SR)}
+Traveling Tournament Problem with Predefined Venues at most three consecutive away or home games
+\begin{itemize}
+    \item at most three consecutive away or home games
+    \item[MZn] \texttt{regular} asserts that a sequence of variables take a value from a finite automaton.
+    \item[E'] \texttt{forAll} checking that there are not four consecutive assignments.
+\end{itemize}
+\end{frame}
+
+\begin{frame}{\texttt{circuit} (MZn)}
+Capacitated Vehicle Routing problem with Time Windows, Service Times and Pickup and Deliveries.
+\begin{itemize}
+    \item \texttt{circuit} is used to ensure the vehicle delivery routes do not take sub-tours in their route and visits each location uniquely for optimisation
+    \item[MnZ] A \texttt{circuit} is such that the cell value of an array points to the index of the next number, and this forms a circuit that continues around. 
+    \item[E'] \url{https://github.com/MiniZinc/libminizinc/blob/master/share/minizinc/std/fzn_circuit.mzn}
+\end{itemize}
+\end{frame}
+
+
+\begin{frame}{Set Variables}
+    Multi-Skilled Project Scheduling Problem
+    \begin{itemize}
+        \item Sets of skills, workers etc. (each assigned an integer)
+        \item[MnZ] Variables which are a set.
+        \item[E'] Occurrence representation of the integers/elements.
+    \end{itemize} 
+\end{frame}
+
+\begin{frame}[containsverbatim]{\texttt{letting} (MZn)}
+Multi-Skilled Project Scheduling Problem
+\begin{itemize}
+    \item \texttt{letting} creates variables within constraints
+\end{itemize}
+\begin{lstlisting}[basicstyle=\tiny, language=minizinc]
+let { set of int: WTasks =
+        { i | i in Tasks where  exists(k in has_skills[j])(rr[k, i] > 0) }
+} in...
+let { set of int: TWorkers = 
+        { j | j in Workers where  exists(k in has_skills[j])(rr[k, i] > 0) }
+} in...
+\end{lstlisting}
+\begin{lstlisting}[basicstyle=\tiny, language=eprime]
+forAll i : Tasks . forAll j : Workers .
+    TWorkers[j, i] = 1 <-> 
+        exists k : Skills . has_skills[j, k] = 1 /\ rr[k,i] > 0,
+\end{lstlisting}
+\end{frame}
+
+
+\begin{frame}{\texttt{cumulative} (MnZ)}
+Multi-Skilled Project Scheduling Problem
+\begin{itemize}
+    \item Determines whether set of tasks with start times, durations, and resource requirements, never exceed the global resource bound at any time.
+    \item[MnZ] Determines if a cumulative resource usage is within bounds.
+    \item[E'] \url{https://github.com/MiniZinc/libminizinc/blob/master/share/minizinc/std/fzn_cumulative.mzn}
+\end{itemize}
+\end{frame}
+
+\section*{Results}
+\begin{frame}{Results}
+{\footnotesize{
+
+\begin{table}[h!]
+    \centering
+    \begin{tabular}{c|c|ccc|ccc}
+    & & \multicolumn{3}{c|}{E'} & \multicolumn{3}{c}{MnZ} \\
+    Problem & \# & O0S0 & O2S1 & O3S2 & O0 & O1 & O5 \\ \hline
+    Quasigroup           & 43 & 41 & 42 & 41 & 40 & 39 & 40 \\        
+    Quasigroup Occ.      & 43 & 41 & 41 & 42 & 32 & 37 & 38 \\
+    Wordpress            & 9  & 6  & 6  & 6  & 6  & 6  & 6  \\               
+    Wordpress Symm.      & 9  & 4  & 4  & 6  & 4  & 4  & 4  \\ 
+    TTPPV                & 20 & 3  & 3  & 3  & 3  & 3  & 3  \\ 
+    MSPSP                & 6  & 6  & 6  & 6  & 6  & 6  & 6  \\ 
+    CVRPTW               & 5  & 0  & 0  & 0  & 0  & 0  & 0  \\ 
+    Rostering            & 7  & 7  & 7  & 7  & 7  & 7  & 7    
+    \end{tabular}
+\end{table}}}
+\end{frame}
+\begin{frame}{Results}
+{\footnotesize{
+
+\begin{table}[h!]
+    \centering
+    \begin{tabular}{c|ccc}
+    & \multicolumn{3}{c}{Timing Ratio} \\
+    Problem & $\frac{\text{O0S0}}{\text{O0}}$ & $\frac{\text{O2S1}}{\text{O1}}$ & $\frac{\text{O3S2}}{\text{O5}}$ \\ \hline
+    Quasigroup           & 0.08      & 0.5       & 0.6   \\        
+    Quasigroup Occ.      & 0.12      & 0.08      & 0.38  \\
+    Wordpress            & 1.54      & 1.83      & 5.29  \\               
+    Wordpress Symm.      & 1.47      & 1.36      & 0.49  \\ 
+    TTPPV                & 0.99      & 1.35      & 1.98  \\ 
+    MSPSP                & 138.48    & 88.57     & 612.61\\ 
+    CVRPTW               & 1.0       & 1.0       & 1.0   \\ 
+    Rostering            & 29.5      & 15.15     & 77.7   
+    \end{tabular}
+\end{table}}}
+\end{frame}
+    
+\section*{Take Away}
+\begin{frame}{Take Away}
+\begin{itemize}
+    \item[MnZ] allows better (expert) modeler control
+    \item[MnZ] provides a slightly more expressive language due to the facilities for code organization and reusability
+    \item[SR] provides a solid set of default settings
+    \item[SR] has a more consistent performance profile
+\end{itemize}    
+
+\end{frame}
+
+\section*{}
+\begin{frame}[plain,noframenumbering,b]
+    \begin{tikzpicture}[remember picture, overlay]
+        \node at (current page.north west) {
+            \begin{tikzpicture}[remember picture, overlay]
+                \fill [fill=uofstablue, anchor=north west] (0, 0) rectangle (\paperwidth, -1.7cm);
+            \end{tikzpicture}
+        };
+
+        \node (logo) [anchor=north east, shift={(-0.1cm,0.2cm)}] at (current page.north east) {
+            \includegraphics[keepaspectratio=true,scale=0.12]{../UniStALogos/03-standard-horizontal/02-standard-white.png}
+        };
+    \end{tikzpicture}
+
+    \begin{center}
+        {\Large{Thank you!}} \\ \vspace{1cm}
+        \href{https://github.com/ruthhoffmann}{ \faGithub\ ruthhoffmann} \\ [2mm]
+        \href{https://www.st-andrews.ac.uk/computer-science/people/rh347/}{ \faDesktop\ www.st-andrews.ac.uk/computer-science/people/rh347/} \\ [2mm]
+        \href{mailto:rh347@st-andrews.ac.uk}{\faEnvelope\ \nolinkurl{rh347@st-andrews.ac.uk}} \\ [1cm]
+        %Find me in my office \\ [1cm]
+    \end{center}
+\end{frame}
+
+\end{document}
